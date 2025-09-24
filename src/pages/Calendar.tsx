@@ -1,53 +1,71 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Plus, Calendar as CalendarIcon, Clock, User } from "lucide-react";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+
+interface Appointment {
+  id: number;
+  datetime: string;
+  status: string;
+  notes?: string;
+  clients: {
+    name: string;
+    phone?: string;
+  };
+}
 
 const Calendar = () => {
-  const appointments = [
-    {
-      id: 1,
-      time: "09:00",
-      duration: "60 min",
-      client: "Maria Silva",
-      service: "Consulta Inicial",
-      status: "confirmed",
-      phone: "(11) 99999-9999"
-    },
-    {
-      id: 2,
-      time: "10:30",
-      duration: "45 min",
-      client: "João Santos", 
-      service: "Avaliação",
-      status: "confirmed",
-      phone: "(11) 98888-8888"
-    },
-    {
-      id: 3,
-      time: "14:00",
-      duration: "30 min",
-      client: "Ana Costa",
-      service: "Retorno",
-      status: "pending",
-      phone: "(11) 97777-7777"
-    },
-    {
-      id: 4,
-      time: "15:30",
-      duration: "60 min",
-      client: "Pedro Lima",
-      service: "Consulta",
-      status: "confirmed",
-      phone: "(11) 96666-6666"
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetchAppointments();
+  }, []);
+
+  const fetchAppointments = async () => {
+    try {
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+
+      const { data, error } = await supabase
+        .from('appointments')
+        .select(`
+          id,
+          datetime,
+          status,
+          notes,
+          clients (
+            name,
+            phone
+          )
+        `)
+        .gte('datetime', startOfDay.toISOString())
+        .lt('datetime', endOfDay.toISOString())
+        .order('datetime', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching appointments:', error);
+        return;
+      }
+
+      setAppointments(data || []);
+    } catch (error) {
+      console.error('Error fetching appointments:', error);
+    } finally {
+      setLoading(false);
     }
-  ];
+  };
 
   const getStatusColor = (status: string) => {
     switch (status) {
-      case "confirmed":
+      case "scheduled":
         return "bg-success/10 text-success border-success/20";
-      case "pending":
-        return "bg-warning/10 text-warning border-warning/20";
+      case "completed":
+        return "bg-primary/10 text-primary border-primary/20";
+      case "cancelled":
+        return "bg-destructive/10 text-destructive border-destructive/20";
       default:
         return "bg-muted/10 text-muted-foreground border-muted/20";
     }
@@ -55,14 +73,36 @@ const Calendar = () => {
 
   const getStatusText = (status: string) => {
     switch (status) {
-      case "confirmed":
-        return "Confirmado";
-      case "pending":
-        return "Pendente";
+      case "scheduled":
+        return "Agendado";
+      case "completed":
+        return "Concluído";
+      case "cancelled":
+        return "Cancelado";
       default:
-        return "Não confirmado";
+        return "Pendente";
     }
   };
+
+  const formatTime = (datetime: string) => {
+    return new Date(datetime).toLocaleTimeString('pt-BR', {
+      hour: '2-digit',
+      minute: '2-digit'
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold">Agenda</h2>
+            <p className="text-muted-foreground">Carregando agendamentos...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -83,7 +123,13 @@ const Calendar = () => {
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <CalendarIcon className="w-5 h-5 text-primary" />
-              <CardTitle>Hoje - 24 de Setembro, 2024</CardTitle>
+              <CardTitle>
+                Hoje - {new Date().toLocaleDateString('pt-BR', { 
+                  day: 'numeric', 
+                  month: 'long', 
+                  year: 'numeric' 
+                })}
+              </CardTitle>
             </div>
             <div className="flex space-x-2">
               <Button variant="outline" size="sm">Semana</Button>
@@ -98,45 +144,71 @@ const Calendar = () => {
 
       {/* Appointments List */}
       <div className="space-y-4">
-        {appointments.map((appointment) => (
-          <Card key={appointment.id} className="bg-gradient-card border-border/20 hover:shadow-glow transition-all duration-300">
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-4">
-                  <div className="flex items-center justify-center w-16 h-16 rounded-lg bg-primary/10 border border-primary/20">
-                    <div className="text-center">
-                      <div className="text-lg font-bold text-primary">{appointment.time}</div>
-                      <div className="text-xs text-muted-foreground">{appointment.duration}</div>
+        {appointments.length === 0 ? (
+          <Card className="bg-gradient-card border-border/20">
+            <CardContent className="p-6 text-center">
+              <CalendarIcon className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">Nenhum agendamento hoje</h3>
+              <p className="text-muted-foreground mb-4">
+                Você não tem agendamentos para hoje. Que tal criar um novo?
+              </p>
+              <Button variant="hero">
+                <Plus className="w-4 h-4 mr-2" />
+                Novo Agendamento
+              </Button>
+            </CardContent>
+          </Card>
+        ) : (
+          appointments.map((appointment) => (
+            <Card key={appointment.id} className="bg-gradient-card border-border/20 hover:shadow-glow transition-all duration-300">
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center justify-center w-16 h-16 rounded-lg bg-primary/10 border border-primary/20">
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-primary">
+                          {formatTime(appointment.datetime)}
+                        </div>
+                        <div className="text-xs text-muted-foreground">60 min</div>
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-1">
+                      <div className="flex items-center space-x-2">
+                        <User className="w-4 h-4 text-muted-foreground" />
+                        <h3 className="font-semibold">{appointment.clients?.name || "Cliente não encontrado"}</h3>
+                      </div>
+                      <p className="text-muted-foreground">
+                        {appointment.notes || "Consulta"}
+                      </p>
+                      {appointment.clients?.phone && (
+                        <p className="text-sm text-muted-foreground">
+                          {appointment.clients.phone}
+                        </p>
+                      )}
                     </div>
                   </div>
                   
-                  <div className="space-y-1">
-                    <div className="flex items-center space-x-2">
-                      <User className="w-4 h-4 text-muted-foreground" />
-                      <h3 className="font-semibold">{appointment.client}</h3>
+                  <div className="flex items-center space-x-3">
+                    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(appointment.status)}`}>
+                      {getStatusText(appointment.status)}
+                    </span>
+                    <div className="flex space-x-2">
+                      <Button variant="outline" size="sm">
+                        Editar
+                      </Button>
+                      {appointment.clients?.phone && (
+                        <Button variant="outline" size="sm">
+                          WhatsApp
+                        </Button>
+                      )}
                     </div>
-                    <p className="text-muted-foreground">{appointment.service}</p>
-                    <p className="text-sm text-muted-foreground">{appointment.phone}</p>
                   </div>
                 </div>
-                
-                <div className="flex items-center space-x-3">
-                  <span className={`px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(appointment.status)}`}>
-                    {getStatusText(appointment.status)}
-                  </span>
-                  <div className="flex space-x-2">
-                    <Button variant="outline" size="sm">
-                      Editar
-                    </Button>
-                    <Button variant="outline" size="sm">
-                      WhatsApp
-                    </Button>
-                  </div>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        ))}
+              </CardContent>
+            </Card>
+          ))
+        )}
       </div>
 
       {/* Quick Actions */}

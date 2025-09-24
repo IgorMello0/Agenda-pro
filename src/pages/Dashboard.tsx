@@ -2,10 +2,20 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { CalendarDays, Users, DollarSign, BarChart3, Bell, Settings, LogOut } from "lucide-react";
 import { Link, Outlet, useLocation } from "react-router-dom";
+import { useAuth } from "@/contexts/AuthContext";
+import { useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
 
 const Dashboard = () => {
   const location = useLocation();
   const isDashboardHome = location.pathname === "/dashboard";
+  const { professional, signOut } = useAuth();
+  const [stats, setStats] = useState({
+    todayAppointments: 0,
+    activeClients: 0,
+    monthlyRevenue: "R$ 0",
+    conversionRate: "0%"
+  });
 
   const navigationItems = [
     { icon: BarChart3, label: "Visão Geral", path: "/dashboard" },
@@ -15,11 +25,60 @@ const Dashboard = () => {
     { icon: BarChart3, label: "Relatórios", path: "/dashboard/reports" },
   ];
 
-  const stats = [
-    { title: "Agendamentos Hoje", value: "8", change: "+12%", icon: CalendarDays },
-    { title: "Clientes Ativos", value: "156", change: "+5%", icon: Users },
-    { title: "Receita Mensal", value: "R$ 4.250", change: "+18%", icon: DollarSign },
-    { title: "Taxa de Conversão", value: "74%", change: "+3%", icon: BarChart3 },
+  useEffect(() => {
+    if (professional) {
+      fetchStats();
+    }
+  }, [professional]);
+
+  const fetchStats = async () => {
+    try {
+      const today = new Date();
+      const startOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate());
+      const endOfDay = new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1);
+
+      // Fetch today's appointments
+      const { data: todayAppointments } = await supabase
+        .from('appointments')
+        .select('*')
+        .gte('datetime', startOfDay.toISOString())
+        .lt('datetime', endOfDay.toISOString());
+
+      // Fetch active clients count
+      const { data: clients } = await supabase
+        .from('clients')
+        .select('id');
+
+      // Fetch monthly revenue
+      const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
+      const { data: payments } = await supabase
+        .from('payments')
+        .select('amount')
+        .eq('status', 'paid')
+        .gte('created_at', startOfMonth.toISOString());
+
+      const monthlyRevenue = payments?.reduce((sum, payment) => sum + Number(payment.amount), 0) || 0;
+
+      setStats({
+        todayAppointments: todayAppointments?.length || 0,
+        activeClients: clients?.length || 0,
+        monthlyRevenue: `R$ ${monthlyRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`,
+        conversionRate: "74%" // This would need more complex calculation
+      });
+    } catch (error) {
+      console.error('Error fetching stats:', error);
+    }
+  };
+
+  const handleLogout = async () => {
+    await signOut();
+  };
+
+  const statsData = [
+    { title: "Agendamentos Hoje", value: stats.todayAppointments.toString(), change: "+12%", icon: CalendarDays },
+    { title: "Clientes Ativos", value: stats.activeClients.toString(), change: "+5%", icon: Users },
+    { title: "Receita Mensal", value: stats.monthlyRevenue, change: "+18%", icon: DollarSign },
+    { title: "Taxa de Conversão", value: stats.conversionRate, change: "+3%", icon: BarChart3 },
   ];
 
   return (
@@ -59,7 +118,11 @@ const Dashboard = () => {
             <Settings className="w-4 h-4 mr-2" />
             Configurações
           </Button>
-          <Button variant="ghost" className="w-full justify-start text-destructive hover:text-destructive">
+          <Button 
+            variant="ghost" 
+            className="w-full justify-start text-destructive hover:text-destructive"
+            onClick={handleLogout}
+          >
             <LogOut className="w-4 h-4 mr-2" />
             Sair
           </Button>
@@ -71,7 +134,9 @@ const Dashboard = () => {
         <div className="mb-6 flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold">Dashboard</h1>
-            <p className="text-muted-foreground">Bem-vindo de volta! Aqui está sua agenda hoje.</p>
+            <p className="text-muted-foreground">
+              Bem-vindo de volta, {professional?.name}! Aqui está sua agenda hoje.
+            </p>
           </div>
           <Button variant="hero">
             <Bell className="w-4 h-4 mr-2" />
@@ -83,7 +148,7 @@ const Dashboard = () => {
           <>
             {/* Stats Grid */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-              {stats.map((stat) => {
+              {statsData.map((stat) => {
                 const Icon = stat.icon;
                 return (
                   <Card key={stat.title} className="bg-gradient-card border-border/20">
@@ -104,7 +169,7 @@ const Dashboard = () => {
               })}
             </div>
 
-            {/* Main Content Sections */}
+            {/* Main Content Sections - keep existing code */}
             <div className="grid lg:grid-cols-2 gap-6">
               <Card className="bg-gradient-card border-border/20">
                 <CardHeader>

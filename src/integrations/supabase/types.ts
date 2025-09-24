@@ -14,13 +14,374 @@ export type Database = {
   }
   public: {
     Tables: {
-      [_ in never]: never
+      appointment_logs: {
+        Row: {
+          action: string | null
+          action_by: string | null
+          appointment_id: number | null
+          created_at: string | null
+          id: number
+        }
+        Insert: {
+          action?: string | null
+          action_by?: string | null
+          appointment_id?: number | null
+          created_at?: string | null
+          id?: number
+        }
+        Update: {
+          action?: string | null
+          action_by?: string | null
+          appointment_id?: number | null
+          created_at?: string | null
+          id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointment_logs_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      appointments: {
+        Row: {
+          client_id: number | null
+          created_at: string | null
+          datetime: string
+          google_event_id: string | null
+          id: number
+          notes: string | null
+          professional_id: number | null
+          source: string | null
+          status: string | null
+        }
+        Insert: {
+          client_id?: number | null
+          created_at?: string | null
+          datetime: string
+          google_event_id?: string | null
+          id?: number
+          notes?: string | null
+          professional_id?: number | null
+          source?: string | null
+          status?: string | null
+        }
+        Update: {
+          client_id?: number | null
+          created_at?: string | null
+          datetime?: string
+          google_event_id?: string | null
+          id?: number
+          notes?: string | null
+          professional_id?: number | null
+          source?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "appointments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "appointments_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      clients: {
+        Row: {
+          created_at: string | null
+          email: string | null
+          id: number
+          name: string | null
+          phone: string | null
+          professional_id: number | null
+        }
+        Insert: {
+          created_at?: string | null
+          email?: string | null
+          id?: number
+          name?: string | null
+          phone?: string | null
+          professional_id?: number | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string | null
+          id?: number
+          name?: string | null
+          phone?: string | null
+          professional_id?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "clients_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      dados_cliente: {
+        Row: {
+          created_at: string | null
+          id: number
+          nomewpp: string | null
+          professional_id: number | null
+          telefone: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: number
+          nomewpp?: string | null
+          professional_id?: number | null
+          telefone?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: number
+          nomewpp?: string | null
+          professional_id?: number | null
+          telefone?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "dados_cliente_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      n8n_chat_histories: {
+        Row: {
+          id: number
+          message: Json | null
+          professional_id: number | null
+          session_id: string | null
+        }
+        Insert: {
+          id?: number
+          message?: Json | null
+          professional_id?: number | null
+          session_id?: string | null
+        }
+        Update: {
+          id?: number
+          message?: Json | null
+          professional_id?: number | null
+          session_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "n8n_chat_histories_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      payments: {
+        Row: {
+          amount: number
+          appointment_id: number | null
+          client_id: number | null
+          created_at: string | null
+          id: number
+          method: string | null
+          professional_id: number | null
+          status: string | null
+        }
+        Insert: {
+          amount: number
+          appointment_id?: number | null
+          client_id?: number | null
+          created_at?: string | null
+          id?: number
+          method?: string | null
+          professional_id?: number | null
+          status?: string | null
+        }
+        Update: {
+          amount?: number
+          appointment_id?: number | null
+          client_id?: number | null
+          created_at?: string | null
+          id?: number
+          method?: string | null
+          professional_id?: number | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "payments_appointment_id_fkey"
+            columns: ["appointment_id"]
+            isOneToOne: false
+            referencedRelation: "appointments"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "payments_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      plans: {
+        Row: {
+          id: number
+          interval: string
+          name: string
+          price_cents: number
+          stripe_price_id: string
+        }
+        Insert: {
+          id?: number
+          interval: string
+          name: string
+          price_cents: number
+          stripe_price_id: string
+        }
+        Update: {
+          id?: number
+          interval?: string
+          name?: string
+          price_cents?: number
+          stripe_price_id?: string
+        }
+        Relationships: []
+      }
+      professionals: {
+        Row: {
+          created_at: string | null
+          email: string
+          google_calendar_token: Json | null
+          id: number
+          name: string
+          password_hash: string | null
+          subscription_status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          email: string
+          google_calendar_token?: Json | null
+          id?: number
+          name: string
+          password_hash?: string | null
+          subscription_status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          email?: string
+          google_calendar_token?: Json | null
+          id?: number
+          name?: string
+          password_hash?: string | null
+          subscription_status?: string | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          created_at: string | null
+          id: string
+          professional_id: number
+        }
+        Insert: {
+          created_at?: string | null
+          id: string
+          professional_id: number
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          professional_id?: number
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: true
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      subscriptions: {
+        Row: {
+          created_at: string | null
+          current_period_end: string | null
+          id: number
+          plan_id: number | null
+          professional_id: number | null
+          status: string | null
+          stripe_subscription_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          current_period_end?: string | null
+          id?: number
+          plan_id?: number | null
+          professional_id?: number | null
+          status?: string | null
+          stripe_subscription_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          current_period_end?: string | null
+          id?: number
+          plan_id?: number | null
+          professional_id?: number | null
+          status?: string | null
+          stripe_subscription_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "subscriptions_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "plans"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "subscriptions_professional_id_fkey"
+            columns: ["professional_id"]
+            isOneToOne: false
+            referencedRelation: "professionals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      get_current_professional_id: {
+        Args: Record<PropertyKey, never>
+        Returns: number
+      }
     }
     Enums: {
       [_ in never]: never

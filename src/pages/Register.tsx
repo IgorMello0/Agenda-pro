@@ -2,23 +2,69 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
+import { useAuth } from "@/contexts/AuthContext";
+import { useToast } from "@/hooks/use-toast";
 
 const Register = () => {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
+  const [loading, setLoading] = useState(false);
+  const { signUp } = useAuth();
+  const navigate = useNavigate();
+  const { toast } = useToast();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
     if (password !== confirmPassword) {
-      alert("Senhas não coincidem");
+      toast({
+        title: "Erro no cadastro",
+        description: "As senhas não conferem.",
+        variant: "destructive",
+      });
       return;
     }
-    // TODO: Implementar registro com Supabase
-    console.log("Register attempt:", { name, email });
+
+    if (password.length < 6) {
+      toast({
+        title: "Erro no cadastro",
+        description: "A senha deve ter pelo menos 6 caracteres.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setLoading(true);
+
+    try {
+      const { error } = await signUp(email, password, { name });
+      
+      if (error) {
+        toast({
+          title: "Erro no cadastro",
+          description: error.message || "Ocorreu um erro ao criar sua conta.",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Conta criada",
+          description: "Verifique seu email para confirmar sua conta.",
+        });
+        navigate("/login");
+      }
+    } catch (error) {
+      toast({
+        title: "Erro no cadastro",
+        description: "Ocorreu um erro inesperado. Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -75,6 +121,7 @@ const Register = () => {
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="••••••••"
                   required
+                  minLength={6}
                   className="bg-background/50"
                 />
               </div>
@@ -87,11 +134,12 @@ const Register = () => {
                   onChange={(e) => setConfirmPassword(e.target.value)}
                   placeholder="••••••••"
                   required
+                  minLength={6}
                   className="bg-background/50"
                 />
               </div>
-              <Button type="submit" variant="hero" className="w-full">
-                Criar Conta
+              <Button type="submit" variant="hero" className="w-full" disabled={loading}>
+                {loading ? "Criando conta..." : "Criar Conta"}
               </Button>
             </form>
             
