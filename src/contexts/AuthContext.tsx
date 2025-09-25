@@ -103,29 +103,15 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   };
 
   const signUp = async (email: string, password: string, professionalData: { name: string }) => {
-    // First create the professional record
-    const { data: professionalRecord, error: professionalError } = await supabase
-      .from('professionals')
-      .insert({
-        name: professionalData.name,
-        email: email,
-        subscription_status: 'inactive'
-      })
-      .select()
-      .single();
-
-    if (professionalError) {
-      return { error: professionalError };
-    }
-
-    // Then create the auth user with professional_id in metadata
+    // Create the auth user with professional data in metadata
+    // The trigger will automatically create the professional record
     const { error } = await supabase.auth.signUp({
       email,
       password,
       options: {
         emailRedirectTo: `${window.location.origin}/dashboard`,
         data: {
-          professional_id: professionalRecord.id
+          name: professionalData.name
         }
       }
     });
