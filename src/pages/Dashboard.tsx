@@ -84,7 +84,7 @@ const Dashboard = () => {
   return (
     <div className="min-h-screen bg-background flex">
       {/* Sidebar */}
-      <aside className="w-64 border-r border-border/40 bg-card/20">
+      <aside className="w-64 border-r border-border/40 bg-card/20 flex flex-col">
         <div className="p-6">
           <div className="flex items-center space-x-2 mb-8">
             <div className="w-8 h-8 bg-gradient-primary rounded-lg"></div>
@@ -113,7 +113,7 @@ const Dashboard = () => {
           </nav>
         </div>
         
-        <div className="absolute bottom-6 left-6 right-6 space-y-2">
+        <div className="mt-auto p-6 space-y-2">
           <Button variant="ghost" className="w-full justify-start">
             <Settings className="w-4 h-4 mr-2" />
             Configurações
