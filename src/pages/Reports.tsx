@@ -1,30 +1,224 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { BarChart3, TrendingUp, Users, Calendar, Download, Filter } from "lucide-react";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState } from "react";
+
+interface MonthlyStats {
+  appointments: number;
+  clients: number;
+  revenue: number;
+  conversionRate: number;
+}
+
+interface WeeklyData {
+  day: string;
+  appointments: number;
+  revenue: number;
+}
+
+interface TopService {
+  name: string;
+  count: number;
+  revenue: number;
+}
+
+interface BotStats {
+  conversations: number;
+  autoAppointments: number;
+  conversionRate: number;
+}
 
 const Reports = () => {
-  const monthlyStats = {
-    appointments: 45,
-    clients: 28,
-    revenue: 4250,
-    conversionRate: 74
+  const { professional } = useAuth();
+  const [monthlyStats, setMonthlyStats] = useState<MonthlyStats>({
+    appointments: 0,
+    clients: 0,
+    revenue: 0,
+    conversionRate: 0
+  });
+  const [weeklyData, setWeeklyData] = useState<WeeklyData[]>([]);
+  const [topServices, setTopServices] = useState<TopService[]>([]);
+  const [botStats, setBotStats] = useState<BotStats>({
+    conversations: 0,
+    autoAppointments: 0,
+    conversionRate: 0
+  });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    if (professional) {
+      fetchReportsData();
+    }
+  }, [professional]);
+
+  const fetchReportsData = async () => {
+    try {
+      await Promise.all([
+        fetchMonthlyStats(),
+        fetchWeeklyData(),
+        fetchTopServices(),
+        fetchBotStats()
+      ]);
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const weeklyData = [
-    { day: "Seg", appointments: 8, revenue: 650 },
-    { day: "Ter", appointments: 6, revenue: 480 },
-    { day: "Qua", appointments: 10, revenue: 820 },
-    { day: "Qui", appointments: 7, revenue: 590 },
-    { day: "Sex", appointments: 9, revenue: 740 },
-    { day: "Sáb", appointments: 5, revenue: 400 },
-    { day: "Dom", appointments: 0, revenue: 0 }
-  ];
+  const fetchMonthlyStats = async () => {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+    
+    // Get appointments count
+    const { data: appointments } = await supabase
+      .from('appointments')
+      .select('id')
+      .eq('professional_id', professional?.id)
+      .gte('created_at', startOfMonth.toISOString());
 
-  const topServices = [
-    { name: "Consulta Inicial", count: 18, revenue: 2700 },
-    { name: "Retorno", count: 15, revenue: 1200 },
-    { name: "Avaliação", count: 12, revenue: 1440 }
-  ];
+    // Get unique clients count
+    const { data: clients } = await supabase
+      .from('clients')
+      .select('id')
+      .eq('professional_id', professional?.id);
+
+    // Get revenue
+    const { data: payments } = await supabase
+      .from('payments')
+      .select('amount')
+      .eq('professional_id', professional?.id)
+      .eq('status', 'paid')
+      .gte('created_at', startOfMonth.toISOString());
+
+    const revenue = payments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+    const appointmentCount = appointments?.length || 0;
+    const clientCount = clients?.length || 0;
+    
+    // Simple conversion rate calculation
+    const conversionRate = clientCount > 0 ? Math.round((appointmentCount / clientCount) * 100) : 0;
+
+    setMonthlyStats({
+      appointments: appointmentCount,
+      clients: clientCount,
+      revenue,
+      conversionRate
+    });
+  };
+
+  const fetchWeeklyData = async () => {
+    const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+    const weekData: WeeklyData[] = [];
+    
+    for (let i = 0; i < 7; i++) {
+      const date = new Date();
+      date.setDate(date.getDate() - (6 - i));
+      const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+      const dayEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+
+      const { data: dayAppointments } = await supabase
+        .from('appointments')
+        .select('id')
+        .eq('professional_id', professional?.id)
+        .gte('datetime', dayStart.toISOString())
+        .lt('datetime', dayEnd.toISOString());
+
+      const { data: dayPayments } = await supabase
+        .from('payments')
+        .select('amount')
+        .eq('professional_id', professional?.id)
+        .eq('status', 'paid')
+        .gte('created_at', dayStart.toISOString())
+        .lt('created_at', dayEnd.toISOString());
+
+      const revenue = dayPayments?.reduce((sum, p) => sum + Number(p.amount), 0) || 0;
+
+      weekData.push({
+        day: days[date.getDay()],
+        appointments: dayAppointments?.length || 0,
+        revenue
+      });
+    }
+
+    setWeeklyData(weekData);
+  };
+
+  const fetchTopServices = async () => {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const { data: appointments } = await supabase
+      .from('appointments')
+      .select('notes')
+      .eq('professional_id', professional?.id)
+      .gte('created_at', startOfMonth.toISOString());
+
+    // Group by service type (notes field)
+    const serviceCount: { [key: string]: { count: number; revenue: number } } = {};
+    
+    appointments?.forEach(apt => {
+      const service = apt.notes || 'Consulta';
+      if (!serviceCount[service]) {
+        serviceCount[service] = { count: 0, revenue: 0 };
+      }
+      serviceCount[service].count++;
+      serviceCount[service].revenue += 150; // Default service price
+    });
+
+    const services = Object.entries(serviceCount)
+      .map(([name, data]) => ({
+        name,
+        count: data.count,
+        revenue: data.revenue
+      }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 3);
+
+    setTopServices(services);
+  };
+
+  const fetchBotStats = async () => {
+    const now = new Date();
+    const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+
+    const { data: chatHistories } = await supabase
+      .from('n8n_chat_histories')
+      .select('id, session_id')
+      .eq('professional_id', professional?.id);
+
+    // Count unique conversations by session_id
+    const uniqueSessions = new Set(chatHistories?.map(chat => chat.session_id)).size;
+    
+    // Get appointments that might be from bot
+    const { data: appointments } = await supabase
+      .from('appointments')
+      .select('id, source')
+      .eq('professional_id', professional?.id)
+      .eq('source', 'bot')
+      .gte('created_at', startOfMonth.toISOString());
+
+    const autoAppointments = appointments?.length || 0;
+    const conversionRate = uniqueSessions > 0 ? Math.round((autoAppointments / uniqueSessions) * 100) : 0;
+
+    setBotStats({
+      conversations: uniqueSessions,
+      autoAppointments,
+      conversionRate
+    });
+  };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold">Relatórios</h2>
+            <p className="text-muted-foreground">Carregando dados...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -175,15 +369,15 @@ const Reports = () => {
             <div className="space-y-4">
               <div className="flex justify-between items-center p-3 bg-background/50 rounded-lg">
                 <span className="text-muted-foreground">Conversas Iniciadas</span>
-                <span className="font-semibold">127</span>
+                <span className="font-semibold">{botStats.conversations}</span>
               </div>
               <div className="flex justify-between items-center p-3 bg-background/50 rounded-lg">
                 <span className="text-muted-foreground">Agendamentos Automáticos</span>
-                <span className="font-semibold">34</span>
+                <span className="font-semibold">{botStats.autoAppointments}</span>
               </div>
               <div className="flex justify-between items-center p-3 bg-background/50 rounded-lg">
                 <span className="text-muted-foreground">Taxa de Conversão Bot</span>
-                <span className="font-semibold text-success">26.8%</span>
+                <span className="font-semibold text-success">{botStats.conversionRate}%</span>
               </div>
               <div className="flex justify-between items-center p-3 bg-background/50 rounded-lg">
                 <span className="text-muted-foreground">Tempo Médio Resposta</span>

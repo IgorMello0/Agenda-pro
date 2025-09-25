@@ -3,46 +3,76 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge";
 import { DollarSign, Search, Filter, Download, CheckCircle, Clock, AlertCircle } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+import { useEffect, useState } from "react";
+import { useToast } from "@/hooks/use-toast";
+
+interface Payment {
+  id: number;
+  amount: number;
+  method: string;
+  status: string;
+  created_at: string;
+  clients: {
+    name: string;
+  };
+  appointments: {
+    notes?: string;
+  };
+}
 
 const Payments = () => {
-  const payments = [
-    {
-      id: 1,
-      client: "Maria Silva",
-      service: "Consulta Inicial",
-      amount: 150,
-      date: "2024-09-24",
-      status: "paid",
-      paymentMethod: "Dinheiro"
-    },
-    {
-      id: 2,
-      client: "João Santos",
-      service: "Avaliação",
-      amount: 120,
-      date: "2024-09-23",
-      status: "pending",
-      paymentMethod: "PIX"
-    },
-    {
-      id: 3,
-      client: "Ana Costa",
-      service: "Retorno",
-      amount: 80,
-      date: "2024-09-22",
-      status: "overdue",
-      paymentMethod: "Cartão"
-    },
-    {
-      id: 4,
-      client: "Pedro Lima",
-      service: "Consulta",
-      amount: 150,
-      date: "2024-09-21",
-      status: "paid",
-      paymentMethod: "PIX"
+  const { professional } = useAuth();
+  const { toast } = useToast();
+  const [payments, setPayments] = useState<Payment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
+
+  useEffect(() => {
+    if (professional) {
+      fetchPayments();
     }
-  ];
+  }, [professional]);
+
+  const fetchPayments = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('payments')
+        .select(`
+          *,
+          clients (name),
+          appointments (notes)
+        `)
+        .eq('professional_id', professional?.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching payments:', error);
+        toast({
+          title: "Erro ao carregar pagamentos",
+          description: "Não foi possível carregar os dados dos pagamentos.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setPayments(data || []);
+    } catch (error) {
+      console.error('Error fetching payments:', error);
+      toast({
+        title: "Erro",
+        description: "Erro inesperado ao carregar os dados.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const filteredPayments = payments.filter(payment =>
+    payment.clients?.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const getStatusInfo = (status: string) => {
     switch (status) {
@@ -73,14 +103,54 @@ const Payments = () => {
     }
   };
 
-  const totalPaid = payments.filter(p => p.status === "paid").reduce((sum, p) => sum + p.amount, 0);
-  const totalPending = payments.filter(p => p.status === "pending").reduce((sum, p) => sum + p.amount, 0);
-  const totalOverdue = payments.filter(p => p.status === "overdue").reduce((sum, p) => sum + p.amount, 0);
+  const totalPaid = payments.filter(p => p.status === "paid").reduce((sum, p) => sum + Number(p.amount), 0);
+  const totalPending = payments.filter(p => p.status === "pending").reduce((sum, p) => sum + Number(p.amount), 0);
+  const totalOverdue = payments.filter(p => p.status === "overdue").reduce((sum, p) => sum + Number(p.amount), 0);
 
-  const handleMarkAsPaid = (paymentId: number) => {
-    // TODO: Implementar com Supabase
-    console.log("Marcar como pago:", paymentId);
+  const handleMarkAsPaid = async (paymentId: number) => {
+    try {
+      const { error } = await supabase
+        .from('payments')
+        .update({ status: 'paid' })
+        .eq('id', paymentId);
+
+      if (error) {
+        toast({
+          title: "Erro",
+          description: "Não foi possível marcar o pagamento como pago.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      toast({
+        title: "Sucesso",
+        description: "Pagamento marcado como pago.",
+      });
+
+      fetchPayments();
+    } catch (error) {
+      console.error('Error updating payment:', error);
+      toast({
+        title: "Erro",
+        description: "Erro inesperado ao atualizar o pagamento.",
+        variant: "destructive",
+      });
+    }
   };
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold">Pagamentos</h2>
+            <p className="text-muted-foreground">Carregando dados...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
@@ -141,6 +211,8 @@ const Payments = () => {
                 <Input
                   placeholder="Buscar por cliente..."
                   className="pl-10 bg-background/50"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
             </div>
@@ -154,7 +226,20 @@ const Payments = () => {
 
       {/* Payments List */}
       <div className="space-y-4">
-        {payments.map((payment) => {
+        {filteredPayments.length === 0 ? (
+          <Card className="bg-gradient-card border-border/20">
+            <CardContent className="p-6 text-center">
+              <DollarSign className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">
+                {searchTerm ? "Nenhum pagamento encontrado" : "Nenhum pagamento registrado"}
+              </h3>
+              <p className="text-muted-foreground">
+                {searchTerm ? "Tente ajustar os termos de busca." : "Quando você receber pagamentos, eles aparecerão aqui."}
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          filteredPayments.map((payment) => {
           const statusInfo = getStatusInfo(payment.status);
           const StatusIcon = statusInfo.icon;
           
@@ -168,17 +253,17 @@ const Payments = () => {
                     </div>
                     
                     <div className="space-y-1">
-                      <h3 className="font-semibold">{payment.client}</h3>
-                      <p className="text-muted-foreground">{payment.service}</p>
+                      <h3 className="font-semibold">{payment.clients?.name || "Cliente não encontrado"}</h3>
+                      <p className="text-muted-foreground">{payment.appointments?.notes || "Pagamento"}</p>
                       <p className="text-sm text-muted-foreground">
-                        {new Date(payment.date).toLocaleDateString('pt-BR')} • {payment.paymentMethod}
+                        {new Date(payment.created_at).toLocaleDateString('pt-BR')} • {payment.method || "Não informado"}
                       </p>
                     </div>
                   </div>
                   
                   <div className="flex items-center space-x-4">
                     <div className="text-right">
-                      <div className="text-lg font-bold">R$ {payment.amount.toFixed(2)}</div>
+                      <div className="text-lg font-bold">R$ {Number(payment.amount).toFixed(2)}</div>
                       <Badge className={statusInfo.color}>
                         <StatusIcon className="w-3 h-3 mr-1" />
                         {statusInfo.label}
@@ -203,8 +288,9 @@ const Payments = () => {
                 </div>
               </CardContent>
             </Card>
-          );
-        })}
+            );
+          })
+        )}
       </div>
 
       {/* Quick Actions */}
