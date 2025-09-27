@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -7,107 +7,148 @@ import { Label } from "@/components/ui/label";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Search, Filter, UserPlus, Phone, MessageCircle, Calendar } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
+
+interface Client {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+  created_at: string;
+  professional_id: number;
+}
 
 const Clients = () => {
   const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
   const { toast } = useToast();
+  const { professional } = useAuth();
   const [newClient, setNewClient] = useState({
     name: "",
     email: "",
     phone: "",
   });
   
-  const [clients, setClients] = useState([
-    {
-      id: 1,
-      name: "Maria Silva",
-      phone: "(11) 99999-9999",
-      email: "maria@email.com",
-      lastAppointment: "2024-09-24",
-      totalAppointments: 5,
-      status: "active",
-      totalSpent: 750
-    },
-    {
-      id: 2,
-      name: "João Santos",
-      phone: "(11) 98888-8888", 
-      email: "joao@email.com",
-      lastAppointment: "2024-09-23",
-      totalAppointments: 3,
-      status: "active",
-      totalSpent: 450
-    },
-    {
-      id: 3,
-      name: "Ana Costa",
-      phone: "(11) 97777-7777",
-      email: "ana@email.com", 
-      lastAppointment: "2024-09-22",
-      totalAppointments: 8,
-      status: "vip",
-      totalSpent: 1200
-    },
-    {
-      id: 4,
-      name: "Pedro Lima",
-      phone: "(11) 96666-6666",
-      email: "pedro@email.com",
-      lastAppointment: "2024-08-15",
-      totalAppointments: 2,
-      status: "inactive",
-      totalSpent: 300
-    }
-  ]);
+  const [clients, setClients] = useState<Client[]>([]);
 
-  const handleAddClient = () => {
-    const client = {
-      id: clients.length + 1,
-      name: newClient.name,
-      email: newClient.email,
-      phone: newClient.phone,
-      lastAppointment: new Date().toISOString().split('T')[0],
-      totalAppointments: 0,
-      status: "active",
-      totalSpent: 0
+  useEffect(() => {
+    if (professional) {
+      fetchClients();
+    }
+  }, [professional]);
+
+  const fetchClients = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('*')
+        .eq('professional_id', professional?.id)
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Error fetching clients:', error);
+        toast({
+          title: "Erro ao carregar clientes",
+          description: "Não foi possível carregar os dados dos clientes.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setClients(data || []);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+      toast({
+        title: "Erro",
+        description: "Erro inesperado ao carregar os dados.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAddClient = async () => {
+    if (!newClient.name.trim() || !newClient.email.trim()) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Nome e email são obrigatórios.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .insert([
+          {
+            name: newClient.name.trim(),
+            email: newClient.email.trim(),
+            phone: newClient.phone.trim(),
+            professional_id: professional?.id
+          }
+        ])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Error adding client:', error);
+        toast({
+          title: "Erro ao adicionar cliente",
+          description: "Não foi possível adicionar o cliente.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setClients(prevClients => [data, ...prevClients]);
+      setNewClient({ name: "", email: "", phone: "" });
+      setOpen(false);
+      toast({
+        title: "Cliente adicionado",
+        description: "Novo cliente foi adicionado com sucesso.",
+      });
+    } catch (error) {
+      console.error('Error adding client:', error);
+      toast({
+        title: "Erro",
+        description: "Erro inesperado ao adicionar cliente.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const filteredClients = clients.filter(client =>
+    client.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    client.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const getStatusInfo = () => {
+    return {
+      label: "Ativo",
+      color: "bg-success/10 text-success border-success/20"
     };
-    setClients([...clients, client]);
-    setNewClient({ name: "", email: "", phone: "" });
-    setOpen(false);
-    toast({
-      title: "Cliente adicionado",
-      description: "Novo cliente foi adicionado com sucesso.",
-    });
   };
 
-  const getStatusInfo = (status: string) => {
-    switch (status) {
-      case "active":
-        return {
-          label: "Ativo",
-          color: "bg-success/10 text-success border-success/20"
-        };
-      case "vip":
-        return {
-          label: "VIP",
-          color: "bg-warning/10 text-warning border-warning/20"
-        };
-      case "inactive":
-        return {
-          label: "Inativo",
-          color: "bg-muted/10 text-muted-foreground border-muted/20"
-        };
-      default:
-        return {
-          label: "Desconhecido",
-          color: "bg-muted/10 text-muted-foreground border-muted/20"
-        };
-    }
-  };
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h2 className="text-2xl font-bold">Clientes</h2>
+            <p className="text-muted-foreground">Carregando dados...</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const totalClients = clients.length;
-  const activeClients = clients.filter(c => c.status === "active" || c.status === "vip").length;
-  const vipClients = clients.filter(c => c.status === "vip").length;
+  const activeClients = clients.length;
+  const vipClients = 0;
 
   return (
     <div className="space-y-6">
@@ -210,6 +251,8 @@ const Clients = () => {
                 <Input
                   placeholder="Buscar por nome, telefone ou email..."
                   className="pl-10 bg-background/50"
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                 />
               </div>
             </div>
@@ -223,65 +266,79 @@ const Clients = () => {
 
       {/* Clients List */}
       <div className="space-y-4">
-        {clients.map((client) => {
-          const statusInfo = getStatusInfo(client.status);
-          
-          return (
-            <Card key={client.id} className="bg-gradient-card border-border/20 hover:shadow-glow transition-all duration-300">
-              <CardContent className="p-6">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center space-x-4">
-                    <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
-                      <span className="text-lg font-semibold text-primary">
-                        {client.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
-                      </span>
-                    </div>
-                    
-                    <div className="space-y-1">
-                      <div className="flex items-center space-x-2">
-                        <h3 className="font-semibold">{client.name}</h3>
-                        <Badge className={statusInfo.color}>
-                          {statusInfo.label}
-                        </Badge>
-                      </div>
-                      <div className="flex items-center space-x-4 text-sm text-muted-foreground">
-                        <span className="flex items-center">
-                          <Phone className="w-3 h-3 mr-1" />
-                          {client.phone}
+        {filteredClients.length === 0 ? (
+          <Card className="bg-gradient-card border-border/20">
+            <CardContent className="p-6 text-center">
+              <UserPlus className="w-12 h-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-semibold mb-2">
+                {searchTerm ? "Nenhum cliente encontrado" : "Nenhum cliente cadastrado"}
+              </h3>
+              <p className="text-muted-foreground">
+                {searchTerm ? "Tente ajustar os termos de busca." : "Adicione seu primeiro cliente para começar."}
+              </p>
+            </CardContent>
+          </Card>
+        ) : (
+          filteredClients.map((client) => {
+            const statusInfo = getStatusInfo();
+            
+            return (
+              <Card key={client.id} className="bg-gradient-card border-border/20 hover:shadow-glow transition-all duration-300">
+                <CardContent className="p-6">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center space-x-4">
+                      <div className="w-12 h-12 rounded-full bg-primary/10 border border-primary/20 flex items-center justify-center">
+                        <span className="text-lg font-semibold text-primary">
+                          {client.name.split(' ').map(n => n[0]).join('').substring(0, 2)}
                         </span>
-                        <span>{client.email}</span>
                       </div>
-                      <div className="text-sm text-muted-foreground">
-                        {client.totalAppointments} agendamentos • Último: {new Date(client.lastAppointment).toLocaleDateString('pt-BR')}
+                      
+                      <div className="space-y-1">
+                        <div className="flex items-center space-x-2">
+                          <h3 className="font-semibold">{client.name}</h3>
+                          <Badge className={statusInfo.color}>
+                            {statusInfo.label}
+                          </Badge>
+                        </div>
+                        <div className="flex items-center space-x-4 text-sm text-muted-foreground">
+                          <span className="flex items-center">
+                            <Phone className="w-3 h-3 mr-1" />
+                            {client.phone || "Não informado"}
+                          </span>
+                          <span>{client.email}</span>
+                        </div>
+                        <div className="text-sm text-muted-foreground">
+                          Cadastrado em: {new Date(client.created_at).toLocaleDateString('pt-BR')}
+                        </div>
                       </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center space-x-4">
-                    <div className="text-right">
-                      <div className="text-lg font-bold">R$ {client.totalSpent.toFixed(2)}</div>
-                      <div className="text-sm text-muted-foreground">Total gasto</div>
                     </div>
                     
-                    <div className="flex space-x-2">
-                      <Button variant="outline" size="sm">
-                        <MessageCircle className="w-4 h-4 mr-1" />
-                        WhatsApp
-                      </Button>
-                      <Button variant="outline" size="sm">
-                        <Calendar className="w-4 h-4 mr-1" />
-                        Agendar
-                      </Button>
-                      <Button variant="ghost" size="sm">
-                        Ver Perfil
-                      </Button>
+                    <div className="flex items-center space-x-4">
+                      <div className="text-right">
+                        <div className="text-lg font-bold">Cliente ativo</div>
+                        <div className="text-sm text-muted-foreground">Status</div>
+                      </div>
+                      
+                      <div className="flex space-x-2">
+                        <Button variant="outline" size="sm">
+                          <MessageCircle className="w-4 h-4 mr-1" />
+                          WhatsApp
+                        </Button>
+                        <Button variant="outline" size="sm">
+                          <Calendar className="w-4 h-4 mr-1" />
+                          Agendar
+                        </Button>
+                        <Button variant="ghost" size="sm">
+                          Ver Perfil
+                        </Button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              </CardContent>
-            </Card>
-          );
-        })}
+                </CardContent>
+              </Card>
+            );
+          })
+        )}
       </div>
 
       {/* Quick Actions */}

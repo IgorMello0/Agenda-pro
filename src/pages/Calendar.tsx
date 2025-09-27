@@ -1,49 +1,77 @@
+import { useState, useEffect } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Plus, Calendar as CalendarIcon, Clock, User, ChevronLeft, ChevronRight } from "lucide-react";
-import { useEffect, useState } from "react";
+import { Badge } from "@/components/ui/badge";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Calendar as CalendarIcon, Clock, Plus, User, ChevronLeft, ChevronRight } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
+import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 
 interface Appointment {
   id: number;
   datetime: string;
+  notes: string;
   status: string;
-  notes?: string;
-  clients: {
+  professional_id: number;
+  client_id: number;
+  clients?: {
     name: string;
-    phone?: string;
+    email: string;
+    phone: string;
   };
 }
 
+interface Client {
+  id: number;
+  name: string;
+  email: string;
+  phone: string;
+}
+
 const Calendar = () => {
-  const [appointments, setAppointments] = useState<Appointment[]>([]);
-  const [loading, setLoading] = useState(true);
   const [currentWeek, setCurrentWeek] = useState(new Date());
+  const [open, setOpen] = useState(false);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
+  const { professional } = useAuth();
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [clients, setClients] = useState<Client[]>([]);
+  const [newAppointment, setNewAppointment] = useState({
+    client_id: "",
+    date: "",
+    time: "",
+    notes: ""
+  });
 
   useEffect(() => {
-    fetchAppointments();
-  }, [currentWeek]);
+    if (professional) {
+      fetchAppointments();
+      fetchClients();
+    }
+  }, [professional, currentWeek]);
 
   const fetchAppointments = async () => {
     try {
-      const startOfWeek = getStartOfWeek(currentWeek);
-      const endOfWeek = new Date(startOfWeek);
-      endOfWeek.setDate(startOfWeek.getDate() + 7);
+      const weekStart = getWeekStart(currentWeek);
+      const weekEnd = getWeekEnd(currentWeek);
 
       const { data, error } = await supabase
         .from('appointments')
         .select(`
-          id,
-          datetime,
-          status,
-          notes,
+          *,
           clients (
             name,
+            email,
             phone
           )
         `)
-        .gte('datetime', startOfWeek.toISOString())
-        .lt('datetime', endOfWeek.toISOString())
+        .eq('professional_id', professional?.id)
+        .gte('datetime', weekStart.toISOString())
+        .lte('datetime', weekEnd.toISOString())
         .order('datetime', { ascending: true });
 
       if (error) {
@@ -56,6 +84,103 @@ const Calendar = () => {
       console.error('Error fetching appointments:', error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchClients = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('clients')
+        .select('id, name, email, phone')
+        .eq('professional_id', professional?.id)
+        .order('name', { ascending: true });
+
+      if (error) {
+        console.error('Error fetching clients:', error);
+        return;
+      }
+
+      setClients(data || []);
+    } catch (error) {
+      console.error('Error fetching clients:', error);
+    }
+  };
+
+  const getWeekStart = (date: Date) => {
+    const day = date.getDay();
+    const diff = date.getDate() - day;
+    const start = new Date(date);
+    start.setDate(diff);
+    start.setHours(0, 0, 0, 0);
+    return start;
+  };
+
+  const getWeekEnd = (date: Date) => {
+    const start = getWeekStart(date);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 6);
+    end.setHours(23, 59, 59, 999);
+    return end;
+  };
+
+  const handleAddAppointment = async () => {
+    if (!newAppointment.client_id || !newAppointment.date || !newAppointment.time) {
+      toast({
+        title: "Campos obrigatórios",
+        description: "Cliente, data e horário são obrigatórios.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    try {
+      const datetime = new Date(`${newAppointment.date}T${newAppointment.time}`);
+      
+      const { data, error } = await supabase
+        .from('appointments')
+        .insert([
+          {
+            professional_id: professional?.id,
+            client_id: parseInt(newAppointment.client_id),
+            datetime: datetime.toISOString(),
+            notes: newAppointment.notes || "",
+            status: "scheduled"
+          }
+        ])
+        .select(`
+          *,
+          clients (
+            name,
+            email,
+            phone
+          )
+        `)
+        .single();
+
+      if (error) {
+        console.error('Error adding appointment:', error);
+        toast({
+          title: "Erro ao agendar",
+          description: "Não foi possível criar o agendamento.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setAppointments(prevAppointments => [...prevAppointments, data]);
+      setNewAppointment({ client_id: "", date: "", time: "", notes: "" });
+      setOpen(false);
+      toast({
+        title: "Agendamento criado",
+        description: "Novo agendamento foi criado com sucesso.",
+      });
+    } catch (error) {
+      console.error('Error adding appointment:', error);
+      toast({
+        title: "Erro",
+        description: "Erro inesperado ao criar agendamento.",
+        variant: "destructive",
+      });
     }
   };
 
@@ -155,10 +280,66 @@ const Calendar = () => {
           <h2 className="text-2xl font-bold">Agenda</h2>
           <p className="text-muted-foreground">Visualização semanal dos seus agendamentos</p>
         </div>
-        <Button variant="hero">
-          <Plus className="w-4 h-4 mr-2" />
-          Novo Agendamento
-        </Button>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button variant="hero">
+              <Plus className="w-4 h-4 mr-2" />
+              Novo Agendamento
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Novo Agendamento</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="appointment-client">Cliente</Label>
+                <Select value={newAppointment.client_id} onValueChange={(value) => setNewAppointment({...newAppointment, client_id: value})}>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione um cliente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clients.map((client) => (
+                      <SelectItem key={client.id} value={client.id.toString()}>
+                        {client.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div>
+                <Label htmlFor="appointment-date">Data</Label>
+                <Input
+                  id="appointment-date"
+                  type="date"
+                  value={newAppointment.date}
+                  onChange={(e) => setNewAppointment({...newAppointment, date: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label htmlFor="appointment-time">Horário</Label>
+                <Input
+                  id="appointment-time"
+                  type="time"
+                  value={newAppointment.time}
+                  onChange={(e) => setNewAppointment({...newAppointment, time: e.target.value})}
+                />
+              </div>
+              <div>
+                <Label htmlFor="appointment-notes">Observações</Label>
+                <Input
+                  id="appointment-notes"
+                  value={newAppointment.notes}
+                  onChange={(e) => setNewAppointment({...newAppointment, notes: e.target.value})}
+                  placeholder="Observações sobre o agendamento"
+                />
+              </div>
+              <Button onClick={handleAddAppointment} className="w-full">
+                Criar Agendamento
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Week Navigation */}
