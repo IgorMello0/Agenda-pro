@@ -1,11 +1,23 @@
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Search, Filter, UserPlus, Phone, MessageCircle, Calendar } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const Clients = () => {
-  const clients = [
+  const [open, setOpen] = useState(false);
+  const { toast } = useToast();
+  const [newClient, setNewClient] = useState({
+    name: "",
+    email: "",
+    phone: "",
+  });
+  
+  const [clients, setClients] = useState([
     {
       id: 1,
       name: "Maria Silva",
@@ -46,7 +58,27 @@ const Clients = () => {
       status: "inactive",
       totalSpent: 300
     }
-  ];
+  ]);
+
+  const handleAddClient = () => {
+    const client = {
+      id: clients.length + 1,
+      name: newClient.name,
+      email: newClient.email,
+      phone: newClient.phone,
+      lastAppointment: new Date().toISOString().split('T')[0],
+      totalAppointments: 0,
+      status: "active",
+      totalSpent: 0
+    };
+    setClients([...clients, client]);
+    setNewClient({ name: "", email: "", phone: "" });
+    setOpen(false);
+    toast({
+      title: "Cliente adicionado",
+      description: "Novo cliente foi adicionado com sucesso.",
+    });
+  };
 
   const getStatusInfo = (status: string) => {
     switch (status) {
@@ -84,10 +116,52 @@ const Clients = () => {
           <h2 className="text-2xl font-bold">Clientes</h2>
           <p className="text-muted-foreground">Gerencie sua base de clientes e histórico</p>
         </div>
-        <Button variant="hero">
-          <UserPlus className="w-4 h-4 mr-2" />
-          Adicionar Cliente
-        </Button>
+        <Dialog open={open} onOpenChange={setOpen}>
+          <DialogTrigger asChild>
+            <Button variant="hero">
+              <UserPlus className="w-4 h-4 mr-2" />
+              Adicionar Cliente
+            </Button>
+          </DialogTrigger>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Adicionar Novo Cliente</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="client-name">Nome Completo</Label>
+                <Input
+                  id="client-name"
+                  value={newClient.name}
+                  onChange={(e) => setNewClient({...newClient, name: e.target.value})}
+                  placeholder="Nome do cliente"
+                />
+              </div>
+              <div>
+                <Label htmlFor="client-email">Email</Label>
+                <Input
+                  id="client-email"
+                  type="email"
+                  value={newClient.email}
+                  onChange={(e) => setNewClient({...newClient, email: e.target.value})}
+                  placeholder="email@exemplo.com"
+                />
+              </div>
+              <div>
+                <Label htmlFor="client-phone">Telefone</Label>
+                <Input
+                  id="client-phone"
+                  value={newClient.phone}
+                  onChange={(e) => setNewClient({...newClient, phone: e.target.value})}
+                  placeholder="(11) 99999-9999"
+                />
+              </div>
+              <Button onClick={handleAddClient} className="w-full">
+                Adicionar Cliente
+              </Button>
+            </div>
+          </DialogContent>
+        </Dialog>
       </div>
 
       {/* Summary Cards */}

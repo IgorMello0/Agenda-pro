@@ -1,8 +1,11 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { DollarSign, Search, Filter, Download, CheckCircle, Clock, AlertCircle } from "lucide-react";
+import { DollarSign, Search, Filter, Download, CheckCircle, Clock, AlertCircle, Plus } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
 import { useEffect, useState } from "react";
@@ -28,6 +31,13 @@ const Payments = () => {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [open, setOpen] = useState(false);
+  const [newPayment, setNewPayment] = useState({
+    client: "",
+    amount: "",
+    method: "",
+    status: "pending"
+  });
 
   useEffect(() => {
     if (professional) {
@@ -139,6 +149,18 @@ const Payments = () => {
     }
   };
 
+  const handleAddPayment = () => {
+    // In a real app, this would create a payment in the database
+    console.log("Adding payment:", newPayment);
+    setNewPayment({ client: "", amount: "", method: "", status: "pending" });
+    setOpen(false);
+    toast({
+      title: "Pagamento registrado",
+      description: "Novo pagamento foi adicionado com sucesso.",
+    });
+    fetchPayments(); // Refresh the list
+  };
+
   if (loading) {
     return (
       <div className="space-y-6">
@@ -159,10 +181,78 @@ const Payments = () => {
           <h2 className="text-2xl font-bold">Pagamentos</h2>
           <p className="text-muted-foreground">Controle financeiro dos seus atendimentos</p>
         </div>
-        <Button variant="hero">
-          <Download className="w-4 h-4 mr-2" />
-          Exportar Relatório
-        </Button>
+        <div className="flex gap-2">
+          <Dialog open={open} onOpenChange={setOpen}>
+            <DialogTrigger asChild>
+              <Button variant="hero">
+                <Plus className="w-4 h-4 mr-2" />
+                Registrar Pagamento
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Registrar Novo Pagamento</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4">
+                <div>
+                  <Label htmlFor="payment-client">Cliente</Label>
+                  <Input
+                    id="payment-client"
+                    value={newPayment.client}
+                    onChange={(e) => setNewPayment({...newPayment, client: e.target.value})}
+                    placeholder="Nome do cliente"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="payment-amount">Valor</Label>
+                  <Input
+                    id="payment-amount"
+                    type="number"
+                    step="0.01"
+                    value={newPayment.amount}
+                    onChange={(e) => setNewPayment({...newPayment, amount: e.target.value})}
+                    placeholder="0,00"
+                  />
+                </div>
+                <div>
+                  <Label htmlFor="payment-method">Método de Pagamento</Label>
+                  <Select value={newPayment.method} onValueChange={(value) => setNewPayment({...newPayment, method: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o método" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Cartão de Crédito">Cartão de Crédito</SelectItem>
+                      <SelectItem value="Cartão de Débito">Cartão de Débito</SelectItem>
+                      <SelectItem value="PIX">PIX</SelectItem>
+                      <SelectItem value="Dinheiro">Dinheiro</SelectItem>
+                      <SelectItem value="Transferência">Transferência</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div>
+                  <Label htmlFor="payment-status">Status</Label>
+                  <Select value={newPayment.status} onValueChange={(value) => setNewPayment({...newPayment, status: value})}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Selecione o status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="pending">Pendente</SelectItem>
+                      <SelectItem value="paid">Pago</SelectItem>
+                      <SelectItem value="overdue">Vencido</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <Button onClick={handleAddPayment} className="w-full">
+                  Registrar Pagamento
+                </Button>
+              </div>
+            </DialogContent>
+          </Dialog>
+          <Button variant="outline">
+            <Download className="w-4 h-4 mr-2" />
+            Exportar Relatório
+          </Button>
+        </div>
       </div>
 
       {/* Summary Cards */}

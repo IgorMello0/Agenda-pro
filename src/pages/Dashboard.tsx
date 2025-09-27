@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { CalendarDays, Users, DollarSign, BarChart3, Bell, Settings, LogOut } from "lucide-react";
+import { CalendarDays, Users, DollarSign, BarChart3, Bell, Settings, LogOut, Shield } from "lucide-react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
@@ -23,6 +23,7 @@ const Dashboard = () => {
     { icon: Users, label: "Clientes", path: "/dashboard/clients" },
     { icon: DollarSign, label: "Pagamentos", path: "/dashboard/payments" },
     { icon: BarChart3, label: "Relatórios", path: "/dashboard/reports" },
+    { icon: Shield, label: "Administração", path: "/dashboard/admin" },
   ];
 
   useEffect(() => {
@@ -83,8 +84,8 @@ const Dashboard = () => {
 
   return (
     <div className="min-h-screen bg-background flex">
-      {/* Sidebar */}
-      <aside className="w-64 border-r border-border/40 bg-card/20 flex flex-col">
+      {/* Fixed Sidebar */}
+      <aside className="fixed left-0 top-0 h-full w-64 border-r border-border/40 bg-card/20 flex flex-col z-50">
         <div className="p-6">
           <div className="flex items-center space-x-2 mb-8">
             <div className="w-8 h-8 bg-gradient-primary rounded-lg"></div>
@@ -114,10 +115,12 @@ const Dashboard = () => {
         </div>
         
         <div className="mt-auto p-6 space-y-2">
-          <Button variant="ghost" className="w-full justify-start">
-            <Settings className="w-4 h-4 mr-2" />
-            Configurações
-          </Button>
+          <Link to="/dashboard/settings">
+            <Button variant="ghost" className="w-full justify-start">
+              <Settings className="w-4 h-4 mr-2" />
+              Configurações
+            </Button>
+          </Link>
           <Button 
             variant="ghost" 
             className="w-full justify-start text-destructive hover:text-destructive"
@@ -129,8 +132,8 @@ const Dashboard = () => {
         </div>
       </aside>
 
-      {/* Main Content */}
-      <main className="flex-1 p-6">
+      {/* Main Content with left margin */}
+      <main className="ml-64 flex-1 p-6 overflow-y-auto">
         <div className="mb-6 flex justify-between items-center">
           <div>
             <h1 className="text-3xl font-bold">Dashboard</h1>
