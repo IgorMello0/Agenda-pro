@@ -132,6 +132,45 @@ export type Database = {
           },
         ]
       }
+      contracts: {
+        Row: {
+          client_id: number | null
+          created_at: string | null
+          document_url: string
+          id: number
+          professional_id: number
+          signature_positions: Json | null
+          signed_at: string | null
+          signed_document_url: string | null
+          status: string | null
+          title: string
+        }
+        Insert: {
+          client_id?: number | null
+          created_at?: string | null
+          document_url: string
+          id?: never
+          professional_id: number
+          signature_positions?: Json | null
+          signed_at?: string | null
+          signed_document_url?: string | null
+          status?: string | null
+          title: string
+        }
+        Update: {
+          client_id?: number | null
+          created_at?: string | null
+          document_url?: string
+          id?: never
+          professional_id?: number
+          signature_positions?: Json | null
+          signed_at?: string | null
+          signed_document_url?: string | null
+          status?: string | null
+          title?: string
+        }
+        Relationships: []
+      }
       dados_cliente: {
         Row: {
           created_at: string | null
@@ -280,6 +319,7 @@ export type Database = {
           id: number
           name: string
           password_hash: string | null
+          signature_image_url: string | null
           subscription_status: string | null
         }
         Insert: {
@@ -289,6 +329,7 @@ export type Database = {
           id?: number
           name: string
           password_hash?: string | null
+          signature_image_url?: string | null
           subscription_status?: string | null
         }
         Update: {
@@ -298,6 +339,7 @@ export type Database = {
           id?: number
           name?: string
           password_hash?: string | null
+          signature_image_url?: string | null
           subscription_status?: string | null
         }
         Relationships: []
