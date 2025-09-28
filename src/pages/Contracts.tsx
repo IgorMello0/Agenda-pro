@@ -15,6 +15,7 @@ interface Contract {
   id: number;
   title: string;
   client_id: number | null;
+  professional_id: number;
   document_url: string;
   signed_document_url: string | null;
   status: string;
@@ -23,7 +24,7 @@ interface Contract {
   signed_at: string | null;
   clients?: {
     name: string;
-  };
+  } | null;
 }
 
 interface Client {
@@ -42,7 +43,7 @@ export default function Contracts() {
   const [signatureMode, setSignatureMode] = useState<number | null>(null);
   const [signaturePositions, setSignaturePositions] = useState<{x: number, y: number}[]>([]);
   const [documentUrl, setDocumentUrl] = useState<string>("");
-  const { user } = useAuth();
+  const { user, professional } = useAuth();
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const imageRef = useRef<HTMLImageElement>(null);
 
@@ -52,7 +53,7 @@ export default function Contracts() {
         .from('contracts')
         .select(`
           *,
-          clients (name)
+          clients!contracts_client_id_fkey (name)
         `)
         .order('created_at', { ascending: false });
 
@@ -98,7 +99,7 @@ export default function Contracts() {
   };
 
   const uploadDocument = async (file: File): Promise<string> => {
-    const fileName = `${user?.id}/${Date.now()}_${file.name}`;
+    const fileName = `${professional?.id}/${Date.now()}_${file.name}`;
     
     const { data, error } = await supabase.storage
       .from('contracts')
@@ -122,6 +123,7 @@ export default function Contracts() {
         .insert({
           title: contractTitle,
           client_id: selectedClient ? parseInt(selectedClient) : null,
+          professional_id: professional?.id,
           document_url: documentPath,
           status: 'pending'
         });
