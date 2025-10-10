@@ -141,7 +141,7 @@ const Dashboard = () => {
               Bem-vindo de volta, {professional?.name}! Aqui está sua agenda hoje.
             </p>
           </div>
-          <Button variant="hero">
+          <Button variant="default">
             <Bell className="w-4 h-4 mr-2" />
             Notificações
           </Button>

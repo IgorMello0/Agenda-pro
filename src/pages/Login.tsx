@@ -91,7 +91,7 @@ const Login = () => {
                   className="bg-background/50"
                 />
               </div>
-              <Button type="submit" variant="hero" className="w-full" disabled={loading}>
+              <Button type="submit" variant="default" className="w-full" disabled={loading}>
                 {loading ? "Entrando..." : "Entrar"}
               </Button>
             </form>

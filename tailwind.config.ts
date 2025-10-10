@@ -13,6 +13,9 @@ export default {
       },
     },
     extend: {
+      fontFamily: {
+        inter: ['Inter', 'system-ui', 'sans-serif'],
+      },
       colors: {
         border: "hsl(var(--border))",
         input: "hsl(var(--input))",
@@ -70,6 +73,7 @@ export default {
       boxShadow: {
         "glow": "var(--shadow-glow)",
         "elegant": "var(--shadow-elegant)",
+        "card": "var(--shadow-card)",
       },
       transitionTimingFunction: {
         "smooth": "var(--transition-smooth)",

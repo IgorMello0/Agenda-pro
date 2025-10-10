@@ -159,7 +159,7 @@ const Clients = () => {
         </div>
         <Dialog open={open} onOpenChange={setOpen}>
           <DialogTrigger asChild>
-            <Button variant="hero">
+            <Button variant="default">
               <UserPlus className="w-4 h-4 mr-2" />
               Adicionar Cliente
             </Button>

@@ -232,7 +232,7 @@ const Reports = () => {
             <Filter className="w-4 h-4 mr-2" />
             Filtros
           </Button>
-          <Button variant="hero">
+          <Button variant="default">
             <Download className="w-4 h-4 mr-2" />
             Exportar
           </Button>
