@@ -1,10 +1,11 @@
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { CalendarDays, Users, DollarSign, BarChart3, Bell, Settings, LogOut, Shield } from "lucide-react";
 import { Link, Outlet, useLocation } from "react-router-dom";
 import { useAuth } from "@/contexts/AuthContext";
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
+import { DashboardContent } from "@/components/DashboardContent";
 
 const Dashboard = () => {
   const location = useLocation();
@@ -172,66 +173,8 @@ const Dashboard = () => {
               })}
             </div>
 
-            {/* Main Content Sections - keep existing code */}
-            <div className="grid lg:grid-cols-2 gap-6">
-              <Card className="bg-gradient-card border-border/20">
-                <CardHeader>
-                  <CardTitle>Próximos Agendamentos</CardTitle>
-                  <CardDescription>Seus compromissos para hoje</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {[
-                      { time: "09:00", client: "Maria Silva", service: "Consulta" },
-                      { time: "10:30", client: "João Santos", service: "Avaliação" },
-                      { time: "14:00", client: "Ana Costa", service: "Retorno" },
-                    ].map((appointment, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-background/50 rounded-lg">
-                        <div>
-                          <p className="font-medium">{appointment.client}</p>
-                          <p className="text-sm text-muted-foreground">{appointment.service}</p>
-                        </div>
-                        <div className="text-sm font-mono bg-primary/10 text-primary px-2 py-1 rounded">
-                          {appointment.time}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <Button variant="outline" className="w-full mt-4" asChild>
-                    <Link to="/dashboard/calendar">Ver Agenda Completa</Link>
-                  </Button>
-                </CardContent>
-              </Card>
-
-              <Card className="bg-gradient-card border-border/20">
-                <CardHeader>
-                  <CardTitle>Atividade Recente</CardTitle>
-                  <CardDescription>Últimas ações no sistema</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {[
-                      { action: "Novo agendamento", client: "Pedro Lima", time: "há 2 minutos" },
-                      { action: "Pagamento confirmado", client: "Laura Mendes", time: "há 1 hora" },
-                      { action: "Cliente reagendou", client: "Carlos Rocha", time: "há 3 horas" },
-                    ].map((activity, index) => (
-                      <div key={index} className="flex items-center justify-between p-3 bg-background/50 rounded-lg">
-                        <div>
-                          <p className="font-medium">{activity.action}</p>
-                          <p className="text-sm text-muted-foreground">{activity.client}</p>
-                        </div>
-                        <div className="text-xs text-muted-foreground">
-                          {activity.time}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <Button variant="outline" className="w-full mt-4" asChild>
-                    <Link to="/dashboard/reports">Ver Relatórios</Link>
-                  </Button>
-                </CardContent>
-              </Card>
-            </div>
+            {/* Main Content Sections */}
+            <DashboardContent />
           </>
         ) : (
           <Outlet />

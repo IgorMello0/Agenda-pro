@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -9,8 +9,9 @@ import { Separator } from "@/components/ui/separator";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/contexts/AuthContext";
-import { User, Bell, Shield, Palette, Globe, Save } from "lucide-react";
+import { User, Bell, Shield, Save } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { supabase } from "@/integrations/supabase/client";
 
 const Settings = () => {
   const { professional } = useAuth();
@@ -20,6 +21,7 @@ const Settings = () => {
     name: professional?.name || "",
     email: professional?.email || "",
     bio: "",
+    phone: "",
     notifications: {
       email: true,
       push: false,
@@ -29,18 +31,83 @@ const Settings = () => {
       profileVisible: true,
       showEmail: false,
       showPhone: true
-    },
-    appearance: {
-      darkMode: false,
-      language: "pt"
     }
   });
+  const [loading, setLoading] = useState(false);
 
-  const handleSave = () => {
-    toast({
-      title: "Configurações salvas",
-      description: "Suas configurações foram atualizadas com sucesso.",
-    });
+  useEffect(() => {
+    if (professional) {
+      loadSettings();
+    }
+  }, [professional]);
+
+  const loadSettings = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('professionals')
+        .select('*')
+        .eq('id', professional?.id)
+        .single();
+
+      if (error) throw error;
+
+      if (data) {
+        setSettings({
+          name: data.name || "",
+          email: data.email || "",
+          bio: data.bio || "",
+          phone: data.phone || "",
+          notifications: {
+            email: data.notifications_email ?? true,
+            push: data.notifications_push ?? false,
+            sms: data.notifications_sms ?? true
+          },
+          privacy: {
+            profileVisible: data.privacy_profile_visible ?? true,
+            showEmail: data.privacy_show_email ?? false,
+            showPhone: data.privacy_show_phone ?? true
+          }
+        });
+      }
+    } catch (error) {
+      console.error('Error loading settings:', error);
+    }
+  };
+
+  const handleSave = async () => {
+    setLoading(true);
+    try {
+      const { error } = await supabase
+        .from('professionals')
+        .update({
+          name: settings.name,
+          bio: settings.bio,
+          phone: settings.phone,
+          notifications_email: settings.notifications.email,
+          notifications_push: settings.notifications.push,
+          notifications_sms: settings.notifications.sms,
+          privacy_profile_visible: settings.privacy.profileVisible,
+          privacy_show_email: settings.privacy.showEmail,
+          privacy_show_phone: settings.privacy.showPhone
+        })
+        .eq('id', professional?.id);
+
+      if (error) throw error;
+
+      toast({
+        title: "Configurações salvas",
+        description: "Suas configurações foram atualizadas com sucesso.",
+      });
+    } catch (error) {
+      console.error('Error saving settings:', error);
+      toast({
+        title: "Erro ao salvar",
+        description: "Não foi possível salvar as configurações.",
+        variant: "destructive",
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const handleNotificationChange = (key: string, value: boolean) => {
@@ -120,6 +187,16 @@ const Settings = () => {
                   onChange={(e) => setSettings(prev => ({...prev, email: e.target.value}))}
                 />
               </div>
+            </div>
+            
+            <div>
+              <Label htmlFor="phone">Telefone</Label>
+              <Input
+                id="phone"
+                value={settings.phone}
+                onChange={(e) => setSettings(prev => ({...prev, phone: e.target.value}))}
+                placeholder="(11) 99999-9999"
+              />
             </div>
             
             <div>
@@ -268,9 +345,9 @@ const Settings = () => {
 
         {/* Save Button */}
         <div className="flex justify-end">
-          <Button onClick={handleSave} className="flex items-center gap-2">
+          <Button onClick={handleSave} className="flex items-center gap-2" disabled={loading}>
             <Save className="w-4 h-4" />
-            Salvar Configurações
+            {loading ? "Salvando..." : "Salvar Configurações"}
           </Button>
         </div>
       </div>
